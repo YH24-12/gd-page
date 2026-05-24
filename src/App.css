@@ -1,0 +1,23 @@
+/* 任务卡片动画 */
+.task-card {
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.task-card:active {
+  transform: scale(0.98);
+}
+
+/* 导航按钮 */
+.nav-btn {
+  min-height: 44px;
+  touch-action: manipulation;
+}
+
+/* 地图导航按钮 */
+.map-nav-btn {
+  transition: background-color 0.2s;
+}
+
+.map-nav-btn:active {
+  background-color: #e5e7eb;
+}

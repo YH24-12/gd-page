@@ -1,0 +1,125 @@
+/* 全局样式优化 */
+* {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+}
+
+html, body, #root {
+  height: 100%;
+  overscroll-behavior: none;
+}
+
+/* 移动端优化 */
+@media (max-width: 640px) {
+  .container {
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+  }
+
+  header {
+    padding: 0.75rem !important;
+    margin-bottom: 0.5rem !important;
+  }
+
+  header h1 {
+    font-size: 1.25rem !important;
+  }
+
+  .control-bar {
+    padding: 0.5rem !important;
+    gap: 0.5rem !important;
+    border-radius: 0 !important;
+    margin-left: -0.75rem !important;
+    margin-right: -0.75rem !important;
+  }
+
+  .schedule-container {
+    padding: 0.75rem !important;
+    border-radius: 0 !important;
+  }
+
+  .task-card {
+    padding: 0.75rem !important;
+  }
+
+  .task-card h3 {
+    font-size: 0.95rem !important;
+  }
+
+  .modal-content {
+    margin: 0.5rem !important;
+    max-height: calc(100vh - 2rem) !important;
+    overflow-y: auto !important;
+  }
+}
+
+/* 平板优化 */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .max-w-5xl {
+    max-width: 100% !important;
+  }
+}
+
+/* 动画 */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+  70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.current-time-highlight {
+  animation: pulse-ring 1.5s infinite;
+  border-color: #ef4444 !important;
+}
+
+/* 任务卡片 */
+.task-card {
+  transition: transform 0.2s, box-shadow 0.2s;
+  cursor: pointer;
+}
+
+.task-card:active {
+  transform: scale(0.98);
+}
+
+/* 导航按钮 */
+.nav-btn {
+  min-height: 44px;
+  touch-action: manipulation;
+}
+
+/* 地图导航按钮 */
+.map-nav-btn {
+  transition: background-color 0.2s;
+}
+
+.map-nav-btn:active {
+  background-color: #e5e7eb;
+}
+
+/* 滚动条美化 */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 2px;
+}
+
+/* 安全区域适配 */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}

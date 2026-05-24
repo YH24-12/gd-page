@@ -1,0 +1,6 @@
+// PWA 图标 (192x192)
+// 这是一个占位符，实际项目中建议使用真实的图标
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192">
+  <rect width="192" height="192" rx="32" fill="#1890ff"/>
+  <text x="96" y="130" text-anchor="middle" fill="white" font-size="100" font-weight="bold">📅</text>
+</svg>
