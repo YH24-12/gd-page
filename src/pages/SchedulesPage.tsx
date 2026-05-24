@@ -1,9 +1,13 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useScheduleStore } from '../stores/scheduleStore'
 
 function SchedulesPage() {
-  const { schedules } = useScheduleStore()
+  const { schedules, loadSchedules } = useScheduleStore()
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
+
+  useEffect(() => {
+    loadSchedules()
+  }, [])
 
   const filteredSchedules = schedules.filter(s => s.date === selectedDate)
 

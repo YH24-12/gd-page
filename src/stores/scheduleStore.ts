@@ -1,79 +1,62 @@
-import { defineStore } from 'pinia'
-import { ref } from 'vue'
-import type { ScheduleItem, ScheduleType } from '../types'
+import { create } from 'zustand'
 
-export type { ScheduleItem, ScheduleType }
+export type ScheduleType = '客户拜访' | '交通' | '餐饮' | '住宿' | '工作'
 
-export const useScheduleStore = defineStore('schedule', () => {
-  const schedules = ref<ScheduleItem[]>([])
+export interface ScheduleItem {
+  id: string
+  date: string
+  time: string
+  task: string
+  location?: string
+  contactPerson?: string
+  notes?: string
+  type: ScheduleType
+  customerId?: string
+  updateTime: string
+}
 
-  const addSchedule = (schedule: Omit<ScheduleItem, 'id' | 'updateTime'>) => {
-    const newSchedule: ScheduleItem = {
+interface ScheduleState {
+  schedules: ScheduleItem[]
+  addSchedule: (schedule: Omit<ScheduleItem, 'id' | 'updateTime'>) => void
+  updateSchedule: (id: string, data: Partial<ScheduleItem>) => void
+  deleteSchedule: (id: string) => void
+  loadSchedules: () => void
+}
+
+const STORAGE_KEY = 'schedules'
+
+export const useScheduleStore = create<ScheduleState>((set, get) => ({
+  schedules: [],
+
+  loadSchedules: () => {
+    const data = localStorage.getItem(STORAGE_KEY)
+    if (data) {
+      set({ schedules: JSON.parse(data) })
+    }
+  },
+
+  addSchedule: (schedule) => {
+    const newItem: ScheduleItem = {
       ...schedule,
       id: Date.now().toString(),
       updateTime: new Date().toISOString()
     }
-    schedules.value.push(newSchedule)
-    saveToLocalStorage()
-  }
+    const schedules = [...get().schedules, newItem]
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(schedules))
+    set({ schedules })
+  },
 
-  const updateSchedule = (id: string, data: Partial<ScheduleItem>) => {
-    const index = schedules.value.findIndex(s => s.id === id)
-    if (index !== -1) {
-      schedules.value[index] = {
-        ...schedules.value[index],
-        ...data,
-        updateTime: new Date().toISOString()
-      }
-      saveToLocalStorage()
-    }
-  }
+  updateSchedule: (id, data) => {
+    const schedules = get().schedules.map(s =>
+      s.id === id ? { ...s, ...data, updateTime: new Date().toISOString() } : s
+    )
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(schedules))
+    set({ schedules })
+  },
 
-  const deleteSchedule = (id: string) => {
-    schedules.value = schedules.value.filter(s => s.id !== id)
-    saveToLocalStorage()
+  deleteSchedule: (id) => {
+    const schedules = get().schedules.filter(s => s.id !== id)
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(schedules))
+    set({ schedules })
   }
-
-  const batchUpdate = (ids: string[], data: Partial<ScheduleItem>) => {
-    ids.forEach(id => updateSchedule(id, data))
-  }
-
-  const batchDelete = (ids: string[]) => {
-    schedules.value = schedules.value.filter(s => !ids.includes(s.id))
-    saveToLocalStorage()
-  }
-
-  const copyToDate = (sourceDate: string, targetDate: string) => {
-    const sourceSchedules = schedules.value.filter(s => s.date === sourceDate)
-    sourceSchedules.forEach(s => {
-      addSchedule({
-        ...s,
-        date: targetDate
-      })
-    })
-  }
-
-  const saveToLocalStorage = () => {
-    localStorage.setItem('schedules', JSON.stringify(schedules.value))
-  }
-
-  const loadFromLocalStorage = () => {
-    const data = localStorage.getItem('schedules')
-    if (data) {
-      schedules.value = JSON.parse(data)
-    }
-  }
-
-  // 初始化时加载
-  loadFromLocalStorage()
-
-  return {
-    schedules,
-    addSchedule,
-    updateSchedule,
-    deleteSchedule,
-    batchUpdate,
-    batchDelete,
-    copyToDate
-  }
-})
+}))

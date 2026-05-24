@@ -4,23 +4,20 @@ import { useCustomerStore } from '../stores/customerStore'
 import { useScheduleStore } from '../stores/scheduleStore'
 
 export default function Dashboard() {
-  const customerStore = useCustomerStore()
-  const scheduleStore = useScheduleStore()
+  const { customers, loadCustomers } = useCustomerStore()
+  const { schedules, loadSchedules } = useScheduleStore()
 
   useEffect(() => {
-    customerStore.loadCustomers()
+    loadCustomers()
+    loadSchedules()
   }, [])
 
+  const todaySchedules = schedules.filter(s => s.date === new Date().toISOString().split('T')[0])
+
   const stats = [
-    { title: '客户总数', value: customerStore.customers.length },
-    { title: '日程总数', value: scheduleStore.schedules.length },
-    { title: '本周日程', value: scheduleStore.schedules.filter(s => {
-      const today = new Date()
-      const weekStart = new Date(today.setDate(today.getDate() - today.getDay() + 1))
-      const weekEnd = new Date(weekStart.setDate(weekStart.getDate() + 6))
-      const scheduleDate = new Date(s.date)
-      return scheduleDate >= weekStart && scheduleDate <= weekEnd
-    }).length }
+    { title: '客户总数', value: customers.length },
+    { title: '日程总数', value: schedules.length },
+    { title: '今日日程', value: todaySchedules.length }
   ]
 
   return (
@@ -66,16 +63,14 @@ export default function Dashboard() {
       <div className="bg-white border rounded-lg p-4 shadow-sm">
         <h2 className="font-bold text-lg mb-4">今日日程</h2>
         <div className="space-y-2">
-          {scheduleStore.schedules
-            .filter(s => s.date === new Date().toISOString().split('T')[0])
-            .map(s => (
-              <div key={s.id} className="flex items-center gap-2 p-2 bg-gray-50 rounded">
-                <span className="font-medium">{s.time}</span>
-                <span>{s.task}</span>
-                <span className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded">{s.type}</span>
-              </div>
-            ))}
-          {scheduleStore.schedules.filter(s => s.date === new Date().toISOString().split('T')[0]).length === 0 && (
+          {todaySchedules.map(s => (
+            <div key={s.id} className="flex items-center gap-2 p-2 bg-gray-50 rounded">
+              <span className="font-medium">{s.time}</span>
+              <span>{s.task}</span>
+              <span className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded">{s.type}</span>
+            </div>
+          ))}
+          {todaySchedules.length === 0 && (
             <p className="text-gray-500 text-center py-4">今日无日程安排</p>
           )}
         </div>

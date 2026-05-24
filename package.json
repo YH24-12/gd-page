@@ -23,7 +23,6 @@
     "leaflet": "^1.9.4",
     "lucide-react": "^0.469.0",
     "nanoid": "^5.0.4",
-    "pinia": "^2.3.0",
     "postcss": "^8.5.15",
     "qrcode.react": "^4.2.0",
     "react": "^19.0.0",

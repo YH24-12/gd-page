@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useCustomerStore } from '../stores/customerStore'
-import type { Customer } from '../types/customer'
+import type { Customer } from '../stores/customerStore'
 
 export default function CustomersPage() {
-  const customerStore = useCustomerStore()
+  const { customers, loadCustomers, addCustomer, updateCustomer, deleteCustomer } = useCustomerStore()
   const [searchQuery, setSearchQuery] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null)
@@ -18,19 +18,23 @@ export default function CustomersPage() {
   })
 
   useEffect(() => {
-    customerStore.loadCustomers()
+    loadCustomers()
   }, [])
 
   const filteredCustomers = searchQuery
-    ? customerStore.filteredCustomers
-    : customerStore.customers
+    ? customers.filter(c =>
+        c.companyName.includes(searchQuery) ||
+        c.shortName.includes(searchQuery) ||
+        c.city.includes(searchQuery)
+      )
+    : customers
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (editingCustomer) {
-      await customerStore.updateCustomer(editingCustomer.id, formData)
+      await updateCustomer(editingCustomer.id, formData)
     } else {
-      await customerStore.addCustomer(formData)
+      await addCustomer(formData)
     }
     setShowModal(false)
     setEditingCustomer(null)
@@ -61,7 +65,7 @@ export default function CustomersPage() {
 
   const handleDelete = async (id: string) => {
     if (confirm('确定要删除这个客户吗？')) {
-      await customerStore.deleteCustomer(id)
+      await deleteCustomer(id)
     }
   }
 
@@ -70,7 +74,7 @@ export default function CustomersPage() {
       <header className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-2xl font-bold">客户管理</h1>
-          <p className="text-gray-500 text-sm">共 {customerStore.customers.length} 个客户</p>
+          <p className="text-gray-500 text-sm">共 {customers.length} 个客户</p>
         </div>
         <button
           className="bg-blue-500 text-white px-4 py-2 rounded-lg"
@@ -85,10 +89,7 @@ export default function CustomersPage() {
           type="text"
           placeholder="搜索客户名称、地址..."
           value={searchQuery}
-          onChange={(e) => {
-            setSearchQuery(e.target.value)
-            customerStore.searchQuery = e.target.value
-          }}
+          onChange={(e) => setSearchQuery(e.target.value)}
           className="w-full border rounded-lg px-4 py-2"
         />
       </div>

@@ -2,11 +2,11 @@ import { useState } from 'react'
 import { useCustomerStore } from '../stores/customerStore'
 
 function AIGeneratePage() {
+  const { customers } = useCustomerStore()
   const [prompt, setPrompt] = useState('')
   const [apiKey, setApiKey] = useState(localStorage.getItem('doubao_api_key') || '')
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<any[]>([])
-  const { customers } = useCustomerStore()
 
   const handleGenerate = async () => {
     if (!prompt.trim() || !apiKey.trim()) {
@@ -18,7 +18,6 @@ function AIGeneratePage() {
     localStorage.setItem('doubao_api_key', apiKey)
 
     try {
-      // 查找相关客户
       const matchedCustomers = customers.filter(c =>
         prompt.includes(c.shortName) || prompt.includes(c.companyName)
       )
