@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>广东出差日程 5.25-5.29</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 自定义动画 */
+        .fade-in {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .task-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        .current-time {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+            50% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+        }
+        
+        /* 小组件紧凑模式 */
+        .widget-mode .container {
+            padding: 10px !important;
+            max-width: 100% !important;
+        }
+        
+        .widget-mode header {
+            display: none !important;
+        }
+        
+        .widget-mode .control-bar {
+            padding: 8px !important;
+            margin-bottom: 10px !important;
+        }
+        
+        .widget-mode .schedule-container {
+            padding: 10px !important;
+        }
+        
+        .widget-mode .task-card {
+            padding: 8px !important;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="container mx-auto px-4 py-6 max-w-5xl">
+        <!-- 头部 -->
+        <header class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">广东出差日程</h1>
+            <p class="text-gray-600">2025年5月25日 - 5月29日</p>
+        </header>
+        
+        <!-- 控制栏 -->
+        <div class="bg-white rounded-lg shadow-sm p-4 mb-6 flex flex-wrap gap-4 items-center control-bar">
+            <!-- 日期选择 -->
+            <div class="flex items-center gap-2">
+                <label class="text-gray-700 font-medium">日期:</label>
+                <select id="date-selector" class="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="2025-05-25">5月25日 (周一)</option>
+                    <option value="2025-05-26">5月26日 (周二)</option>
+                    <option value="2025-05-27">5月27日 (周三)</option>
+                    <option value="2025-05-28">5月28日 (周四)</option>
+                    <option value="2025-05-29">5月29日 (周五)</option>
+                </select>
+            </div>
+            
+            <!-- 视图切换 -->
+            <div class="flex items-center gap-2">
+                <label class="text-gray-700 font-medium">视图:</label>
+                <div class="flex border border-gray-300 rounded-md overflow-hidden">
+                    <button id="timeline-view" class="px-3 py-2 bg-blue-500 text-white">时间轴</button>
+                    <button id="list-view" class="px-3 py-2 bg-white text-gray-700 hover:bg-gray-100">列表</button>
+                </div>
+            </div>
+            
+            <!-- 城市筛选 -->
+            <div class="flex items-center gap-2">
+                <label class="text-gray-700 font-medium">城市:</label>
+                <select id="city-filter" class="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="all">全部城市</option>
+                    <option value="衢州">衢州</option>
+                    <option value="广州">广州</option>
+                    <option value="深圳">深圳</option>
+                    <option value="中山">中山</option>
+                    <option value="江门">江门</option>
+                    <option value="肇庆">肇庆</option>
+                </select>
+            </div>
+            
+            <!-- 当前时间按钮 -->
+            <button id="current-time-btn" class="ml-auto bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 transition-colors">
+                定位当前时间
+            </button>
+        </div>
+        
+        <!-- 日程展示区 -->
+        <div id="schedule-container" class="bg-white rounded-lg shadow-sm p-6 schedule-container">
+            <!-- 内容将通过JS动态生成 -->
+        </div>
+    </div>
+    
+    <!-- 详情弹窗 -->
+    <div id="detail-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg shadow-lg p-6 max-w-md w-full mx-4 fade-in">
+            <div class="flex justify-between items-center mb-4">
+                <h3 id="modal-title" class="text-xl font-bold text-gray-800"></h3>
+                <button id="close-modal" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+            </div>
+            <div id="modal-content" class="space-y-3">
+                <!-- 详情内容将通过JS动态生成 -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 完整的日程数据
+        const scheduleData = [
+            {
+                "sheet_name": "5.25周一",
+                "date": "2025-05-25",
+                "time_segment": "10:00",
+                "task": "前往衢州机场",
+                "location": "衢州机场",
+                "contact": "携带身份证、名片、行李物品",
+                "city": "衢州",
+                "type": "交通"
+            },
+            {
+                "sheet_name": "5.25周一",
+                "date": "2025-05-25",
+                "time_segment": "",
+                "task": "值机，用餐，休息",
+                "location": "",
+                "contact": "讨论行程及下午拜访重点",
+                "city": "衢州",
+                "type": "餐饮"
+            },
+            {
+                "sheet_name": "5.25周一",
+                "date": "2025-05-25",
+                "time_segment": "13:00",
+                "task": "登机",
+                "location": "",
+                "contact": "",
+                "city": "衢州",
+                "type": "交通"
+            },
+            {
+                "sheet_name": "5.25周一",
+                "date": "2025-05-25",
+                "time_segment": "14:55",
+                "task": "抵达广州白云机场",
+                "location": "广州白云机场 T2",
+                "contact": "提取托运行李",
+                "city": "广州",
+                "type": "交通"
+            },
+            {
+                "sheet_name": "5.25周一",
+                "date": "2025-05-25",
+                "time_segment": "15:30",
+                "task": "神州租车取车，出发拜访",
+                "location": "2号航站楼 到达大厅一层T21R0商铺",
+                "contact": "检查车辆外观、油量、行驶证",
+                "city": "广州",
+                "type": "交通"
+            },
+            {
+                "sheet_name": "5.25周一",
+                "date": "2025-05-25",
+                "time_segment": "16:20",
+                "task": "拜访广州莱索",
+                "location": "广州市黄埔区沧海三路5号",
+                "contact": "距离白云机场53.9km，约47分钟",
+                "city": "广州",
+                "type": "客户拜访"
+            },
+            {
+                "sheet_name": "5.25周一",
+                "date": "2025-05-25",
+                "time_segment": "",
+                "task": "酒店办理入住",
+                "location": "广州市增城区新塘镇港口大道中128号亚朵X酒店",
+                "contact": "距离广州莱索约11.7km，约28min",
+                "city": "广州",
+                "type": "住宿"
+            },
+            {
+                "sheet_name": "5.25周一",
+                "date": "2025-05-25",
+                "time_segment": "",
+                "task": "晚餐",
+                "location": "",
+                "contact": "讨论次日拜访重点",
+                "city": "广州",
+                "type": "餐饮"
+            },
+            {
+                "sheet_name": "5.26周二",
+                "date": "2025-05-26",
+                "time_segment": "9:00",
+                "task": "出发拜访",
+                "location": "",
+                "contact": "",
+                "city": "广州",
+                "type": "交通"
+            },
+            {
+                "sheet_name": "5.26周二",
+                "date": "2025-05-26",
+                "time_segment": "10:00",
+                "task": "忍嘉有机硅拜访",
+                "location": "",
+                "contact": "距离广州增城亚朵酒店约63.6km，约1小时",
+                "city": "深圳",
+                "type": "客户拜访"
+            },
+            {
+                "sheet_name": "5.26周二",
+                "date": "2025-05-26",
+                "time_segment": "11:00",
+                "task": "出发",
+                "location": "深圳光明新区公明镇合水口第六工业园区旭发科技园10号",
+                "contact": "距离忍嘉约43.5km，约57min",
+                "city": "深圳",
+                "type": "交通"
+            },
+            {
+                "sheet_name": "5.26周二",
+                "date": "2025-05-26",
+                "time_segment": "",
+                "task": "午餐，休息",
+                "location": "",
+                "contact": "讨论下午拜访重点",
+                "city": "深圳",
+                "type": "餐饮"
+            },
+            {
+                "sheet_name": "5.26周二",
+                "date": "2025-05-26",
+                "time_segment": "13:00",
+                "task": "拜访深圳优宝",
+                "location": "深圳光明新区公明镇合水口第六工业园区旭发科技园10号",
+                "contact": "岳凤阳，老板",
+                "city": "深圳",
+                "type": "客户拜访"
+            },
+            {
+                "sheet_name": "5.26周二",
+                "date": "2025-05-26",
+                "time_segment": "14:00",
+                "task": "出发",
+                "location": "深圳三益",
+                "contact": "",
+                "city": "深圳",
+                "type": "交通"
+            },
+            {
+                "sheet_name": "5.26周二",
+                "date": "2025-05-26",
+                "time_segment": "15:00",
+                "task": "拜访深圳三益",
+                "location": "",
+                "contact": "",
+                "city": "深圳",
+                "type": "客户拜访"
+            },
+            {
+                "sheet_name": "5.26周二",
+                "date": "2025-05-26",
+                "time_segment": "",
+                "task": "出发",
+                "location": "中山市黄圃镇兴圃大道西61号铂顿国际公寓",
+                "contact": "距离深圳优宝约81.5km，约1h15min；高级大，234元左右",
+                "city": "中山",
+                "type": "交通"
+            },
+            {
+                "sheet_name": "5.26周二",
+                "date": "2025-05-26",
+                "time_segment": "",
+                "task": "晚餐",
+                "location": "",
+                "contact": "讨论次日拜访重点",
+                "city": "中山",
+                "type": "餐饮"
+            },
+            {
+                "sheet_name": "5.27周三",
+                "date": "2025-05-27",
+                "time_segment": "8:20",
+                "task": "出发拜访",
+                "location": "黄圃镇新柳西路6号",
+                "contact": "距离酒店1.8km，6min；王文华。研发",
+                "city": "中山",
+                "type": "交通"
+            },
+            {
+                "sheet_name": "5.27周三",
+                "date": "2025-05-27",
+                "time_segment": "9:20",
+                "task": "出发",
+                "location": "江门盈创",
+                "contact": "约1小时",
+                "city": "江门",
+                "type": "交通"
+            },
+            {
+                "sheet_name": "5.27周三",
+                "date": "2025-05-27",
+                "time_segment": "10:20",
+                "task": "拜访江门盈创",
+                "location": "",
+                "contact": "",
+                "city": "江门",
+                "type": "客户拜访"
+            },
+            {
+                "sheet_name": "5.27周三",
+                "date": "2025-05-27",
+                "time_segment": "",
+                "task": "午餐，休息",
+                "location": "",
+                "contact": "讨论下午拜访重点",
+                "city": "江门",
+                "type": "餐饮"
+            },
+            {
+                "sheet_name": "5.27周三",
+                "date": "2025-05-27",
+                "time_segment": "13:00",
+                "task": "出发",
+                "location": "肇庆欧迪斯",
+                "contact": "约114km，1h20min",
+                "city": "肇庆",
+                "type": "交通"
+            },
+            {
+                "sheet_name": "5.27周三",
+                "date": "2025-05-27",
+                "time_segment": "14:30",
+                "task": "拜访肇庆欧迪斯",
+                "location": "",
+                "contact": "",
+                "city": "肇庆",
+                "type": "客户拜访"
+            },
+            {
+                "sheet_name": "5.27周三",
+                "date": "2025-05-27",
+                "time_segment": "15:30",
+                "task": "出发",
+                "location": "盈富工业区36号新安天玉",
+                "contact": "距离欧迪斯约62.6km，约48min",
+                "city": "广州",
+                "type": "交通"
+            },
+            {
+                "sheet_name": "5.27周三",
+                "date": "2025-05-27",
+                "time_segment": "16:10",
+                "task": "拜访新安天玉",
+                "location": "",
+                "contact": "",
+                "city": "广州",
+                "type": "客户拜访"
+            },
+            {
+                "sheet_name": "5.27周三",
+                "date": "2025-05-27",
+                "time_segment": "",
+                "task": "晚餐",
+                "location": "",
+                "contact": "",
+                "city": "广州",
+                "type": "餐饮"
+            },
+            {
+                "sheet_name": "5.27周三",
+                "date": "2025-05-27",
+                "time_segment": "",
+                "task": "出发",
+                "location": "桔子酒店（广州天河奥体中心店）",
+                "contact": "距离新安天玉约85.2km，约1h10min",
+                "city": "广州",
+                "type": "交通"
+            },
+            {
+                "sheet_name": "5.27周三",
+                "date": "2025-05-27",
+                "time_segment": "",
+                "task": "讨论次日拜访重点",
+                "location": "",
+                "contact": "",
+                "city": "广州",
+                "type": "工作"
+            },
+            {
+                "sheet_name": "5.28周四",
+                "date": "2025-05-28",
+                "time_segment": "8:30",
+                "task": "出发拜访",
+                "location": "姬堂长庚西街560号202厂房广州采润",
+                "contact": "距离酒店约8.4km，约15分钟",
+                "city": "广州",
+                "type": "交通"
+            },
+            {
+                "sheet_name": "5.28周四",
+                "date": "2025-05-28",
+                "time_segment": "8:50",
+                "task": "拜访广州采润",
+                "location": "",
+                "contact": "",
+                "city": "广州",
+                "type": "客户拜访"
+            },
+            {
+                "sheet_name": "5.28周四",
+                "date": "2025-05-28",
+                "time_segment": "10:00",
+                "task": "出发拜访",
+                "location": "广州知易",
+                "contact": "",
+                "city": "广州",
+                "type": "交通"
+            },
+            {
+                "sheet_name": "5.28周四",
+                "date": "2025-05-28",
+                "time_segment": "10:30",
+                "task": "拜访广州知易",
+                "location": "",
+                "contact": "",
+                "city": "广州",
+                "type": "客户拜访"
+            },
+            {
+                "sheet_name": "5.28周四",
+                "date": "2025-05-28",
+                "time_segment": "",
+                "task": "午餐，休息",
+                "location": "",
+                "contact": "讨论下午拜访重点",
+                "city": "广州",
+                "type": "餐饮"
+            },
+            {
+                "sheet_name": "5.28周四",
+                "date": "2025-05-28",
+                "time_segment": "13:30",
+                "task": "出发",
+                "location": "何香凝工业区14幢厂房",
+                "contact": "",
+                "city": "广州",
+                "type": "交通"
+            },
+            {
+                "sheet_name": "5.28周四",
+                "date": "2025-05-28",
+                "time_segment": "14:30",
+                "task": "拜访广州友乐",
+                "location": "",
+                "contact": "",
+                "city": "广州",
+                "type": "客户拜访"
+            },
+            {
+                "sheet_name": "5.28周四",
+                "date": "2025-05-28",
+                "time_segment": "",
+                "task": "出发",
+                "location": "桔子酒店（广州白云国际机场店）",
+                "contact": "距离广州友乐约54.1km，约48min",
+                "city": "广州",
+                "type": "交通"
+            },
+            {
+                "sheet_name": "5.28周四",
+                "date": "2025-05-28",
+                "time_segment": "",
+                "task": "晚餐",
+                "location": "",
+                "contact": "复盘信息",
+                "city": "广州",
+                "type": "餐饮"
+            },
+            {
+                "sheet_name": "5.29周五",
+                "date": "2025-05-29",
+                "time_segment": "7:30",
+                "task": "出发",
+                "location": "广州白云机场",
+                "contact": "距离酒店约6.1km，约12分钟",
+                "city": "广州",
+                "type": "交通"
+            },
+            {
+                "sheet_name": "5.29周五",
+                "date": "2025-05-29",
+                "time_segment": "8:00",
+                "task": "还车",
+                "location": "T2号航站楼 P8地下停车场B1层K16",
+                "contact": "",
+                "city": "广州",
+                "type": "交通"
+            },
+            {
+                "sheet_name": "5.29周五",
+                "date": "2025-05-29",
+                "time_segment": "",
+                "task": "值机，休息",
+                "location": "",
+                "contact": "",
+                "city": "广州",
+                "type": "交通"
+            },
+            {
+                "sheet_name": "5.29周五",
+                "date": "2025-05-29",
+                "time_segment": "9:50",
+                "task": "登机",
+                "location": "",
+                "contact": "",
+                "city": "广州",
+                "type": "交通"
+            },
+            {
+                "sheet_name": "5.29周五",
+                "date": "2025-05-29",
+                "time_segment": "11:50",
+                "task": "到达衢州机场",
+                "location": "衢州机场",
+                "contact": "提取托运行李",
+                "city": "衢州",
+                "type": "交通"
+            }
+        ];
+
+        // 任务类型颜色映射
+        const typeColors = {
+            "客户拜访": "bg-blue-100 border-blue-500 text-blue-800",
+            "交通": "bg-green-100 border-green-500 text-green-800",
+            "餐饮": "bg-yellow-100 border-yellow-500 text-yellow-800",
+            "住宿": "bg-purple-100 border-purple-500 text-purple-800",
+            "工作": "bg-gray-100 border-gray-500 text-gray-800",
+            "其他": "bg-gray-100 border-gray-500 text-gray-800"
+        };
+
+        // 任务类型图标映射
+        const typeIcons = {
+            "客户拜访": "👥",
+            "交通": "🚗",
+            "餐饮": "🍽️",
+            "住宿": "🏨",
+            "工作": "💼",
+            "其他": "📌"
+        };
+
+        // 当前选中的日期和视图
+        let currentDate = "2025-05-25";
+        let currentView = "timeline";
+        let currentCity = "all";
+        let isWidgetMode = false;
+
+        // DOM元素
+        const dateSelector = document.getElementById('date-selector');
+        const timelineViewBtn = document.getElementById('timeline-view');
+        const listViewBtn = document.getElementById('list-view');
+        const cityFilter = document.getElementById('city-filter');
+        const currentTimeBtn = document.getElementById('current-time-btn');
+        const scheduleContainer = document.getElementById('schedule-container');
+        const detailModal = document.getElementById('detail-modal');
+        const modalTitle = document.getElementById('modal-title');
+        const modalContent = document.getElementById('modal-content');
+        const closeModalBtn = document.getElementById('close-modal');
+
+        // 初始化
+        function init() {
+            // 检查URL参数是否为小组件模式
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('widget') === 'true') {
+                document.body.classList.add('widget-mode');
+                isWidgetMode = true;
+            }
+            
+            // 自动定位到当前日期
+            const now = new Date();
+            const today = now.toISOString().split('T')[0];
+            const validDates = ["2025-05-25", "2025-05-26", "2025-05-27", "2025-05-28", "2025-05-29"];
+            
+            if (validDates.includes(today)) {
+                currentDate = today;
+                dateSelector.value = today;
+            }
+            
+            renderSchedule();
+            setupEventListeners();
+            
+            // 每分钟自动刷新当前时间高亮
+            setInterval(locateCurrentTimeSilent, 60000);
+        }
+
+        // 设置事件监听器
+        function setupEventListeners() {
+            dateSelector.addEventListener('change', (e) => {
+                currentDate = e.target.value;
+                renderSchedule();
+            });
+
+            timelineViewBtn.addEventListener('click', () => {
+                currentView = "timeline";
+                updateViewButtons();
+                renderSchedule();
+            });
+
+            listViewBtn.addEventListener('click', () => {
+                currentView = "list";
+                updateViewButtons();
+                renderSchedule();
+            });
+
+            cityFilter.addEventListener('change', (e) => {
+                currentCity = e.target.value;
+                renderSchedule();
+            });
+
+            currentTimeBtn.addEventListener('click', () => {
+                locateCurrentTime();
+            });
+
+            closeModalBtn.addEventListener('click', () => {
+                detailModal.classList.add('hidden');
+            });
+
+            // 点击模态框外部关闭
+            detailModal.addEventListener('click', (e) => {
+                if (e.target === detailModal) {
+                    detailModal.classList.add('hidden');
+                }
+            });
+        }
+
+        // 更新视图按钮状态
+        function updateViewButtons() {
+            if (currentView === "timeline") {
+                timelineViewBtn.classList.remove('bg-white', 'text-gray-700', 'hover:bg-gray-100');
+                timelineViewBtn.classList.add('bg-blue-500', 'text-white');
+                listViewBtn.classList.remove('bg-blue-500', 'text-white');
+                listViewBtn.classList.add('bg-white', 'text-gray-700', 'hover:bg-gray-100');
+            } else {
+                listViewBtn.classList.remove('bg-white', 'text-gray-700', 'hover:bg-gray-100');
+                listViewBtn.classList.add('bg-blue-500', 'text-white');
+                timelineViewBtn.classList.remove('bg-blue-500', 'text-white');
+                timelineViewBtn.classList.add('bg-white', 'text-gray-700', 'hover:bg-gray-100');
+            }
+        }
+
+        // 过滤数据
+        function filterData() {
+            return scheduleData.filter(task => {
+                const dateMatch = task.date === currentDate;
+                const cityMatch = currentCity === "all" || task.city === currentCity;
+                return dateMatch && cityMatch;
+            });
+        }
+
+        // 渲染日程
+        function renderSchedule() {
+            const filteredData = filterData();
+            
+            if (filteredData.length === 0) {
+                scheduleContainer.innerHTML = `
+                    <div class="text-center py-12 text-gray-500">
+                        <p class="text-xl">当日无符合条件的日程安排</p>
+                    </div>
+                `;
+                return;
+            }
+
+            if (currentView === "timeline") {
+                renderTimelineView(filteredData);
+            } else {
+                renderListView(filteredData);
+            }
+        }
+
+        // 渲染时间轴视图
+        function renderTimelineView(data) {
+            let html = `
+                <div class="relative">
+                    <div class="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200"></div>
+                    <div class="space-y-6">
+            `;
+
+            data.forEach((task, index) => {
+                const timeDisplay = task.time_segment || "待定时间";
+                const colorClass = typeColors[task.type] || typeColors["其他"];
+                const icon = typeIcons[task.type] || typeIcons["其他"];
+                
+                html += `
+                    <div class="relative pl-12 fade-in" style="animation-delay: ${index * 0.1}s">
+                        <div class="absolute left-0 w-8 h-8 rounded-full ${colorClass.split(' ')[0]} border-2 ${colorClass.split(' ')[1]} flex items-center justify-center">
+                            ${icon}
+                        </div>
+                        <div class="task-card bg-white border-l-4 ${colorClass.split(' ')[1]} rounded-lg shadow-sm p-4 cursor-pointer transition-all duration-200" onclick="showTaskDetail(${index})">
+                            <div class="text-xl font-bold text-gray-800 mb-2">${timeDisplay}</div>
+                            <h3 class="font-bold text-lg text-gray-800 mb-2">${task.task}</h3>
+                            ${task.location ? `<p class="text-gray-600 mb-1"><span class="font-medium">地点:</span> ${task.location}</p>` : ''}
+                            ${task.city ? `<span class="inline-block px-2 py-1 text-xs rounded-full ${colorClass}">${task.city}</span>` : ''}
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += `
+                    </div>
+                </div>
+            `;
+            
+            scheduleContainer.innerHTML = html;
+        }
+
+        // 渲染列表视图
+        function renderListView(data) {
+            let html = `
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead>
+                            <tr class="border-b border-gray-200">
+                                <th class="text-left py-3 px-4 font-bold text-lg text-gray-700">时间</th>
+                                <th class="text-left py-3 px-4 font-semibold text-gray-700">任务</th>
+                                <th class="text-left py-3 px-4 font-semibold text-gray-700">地点</th>
+                                <th class="text-left py-3 px-4 font-semibold text-gray-700">城市</th>
+                                <th class="text-left py-3 px-4 font-semibold text-gray-700">类型</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            data.forEach((task, index) => {
+                const timeDisplay = task.time_segment || "待定";
+                const colorClass = typeColors[task.type] || typeColors["其他"];
+                
+                html += `
+                    <tr class="border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors" onclick="showTaskDetail(${index})">
+                        <td class="py-3 px-4 font-bold text-lg">${timeDisplay}</td>
+                        <td class="py-3 px-4 font-medium">${task.task}</td>
+                        <td class="py-3 px-4 text-gray-600">${task.location || "-"}</td>
+                        <td class="py-3 px-4">${task.city || "-"}</td>
+                        <td class="py-3 px-4">
+                            <span class="inline-block px-2 py-1 text-xs rounded-full ${colorClass}">${task.type}</span>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            html += `
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            
+            scheduleContainer.innerHTML = html;
+        }
+
+        // 显示任务详情
+        function showTaskDetail(index) {
+            const filteredData = filterData();
+            const task = filteredData[index];
+            
+            modalTitle.textContent = task.task;
+            
+            let contentHtml = `
+                <div class="flex items-center gap-2">
+                    <span class="text-gray-600 font-medium">时间:</span>
+                    <span class="font-bold text-lg">${task.time_segment || "待定时间"}</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="text-gray-600 font-medium">日期:</span>
+                    <span>${task.date}</span>
+                </div>
+            `;
+            
+            if (task.location) {
+                contentHtml += `
+                    <div class="flex items-start gap-2">
+                        <span class="text-gray-600 font-medium">地点:</span>
+                        <span>${task.location}</span>
+                    </div>
+                `;
+            }
+            
+            if (task.city) {
+                contentHtml += `
+                    <div class="flex items-center gap-2">
+                        <span class="text-gray-600 font-medium">城市:</span>
+                        <span class="inline-block px-2 py-1 text-xs rounded-full ${typeColors[task.type]}">${task.city}</span>
+                    </div>
+                `;
+            }
+            
+            if (task.contact) {
+                contentHtml += `
+                    <div class="flex items-start gap-2">
+                        <span class="text-gray-600 font-medium">备注:</span>
+                        <span>${task.contact}</span>
+                    </div>
+                `;
+            }
+            
+            contentHtml += `
+                <div class="flex items-center gap-2">
+                    <span class="text-gray-600 font-medium">类型:</span>
+                    <span class="inline-block px-2 py-1 text-xs rounded-full ${typeColors[task.type]}">${task.type}</span>
+                </div>
+            `;
+            
+            modalContent.innerHTML = contentHtml;
+            detailModal.classList.remove('hidden');
+        }
+
+        // 定位当前时间（带滚动和高亮）
+        function locateCurrentTime() {
+            const now = new Date();
+            const today = now.toISOString().split('T')[0];
+            
+            // 检查当前日期是否在日程范围内
+            const validDates = ["2025-05-25", "2025-05-26", "2025-05-27", "2025-05-28", "2025-05-29"];
+            
+            if (!validDates.includes(today)) {
+                alert("当前日期不在出差日程范围内");
+                return;
+            }
+            
+            // 切换到当前日期
+            currentDate = today;
+            dateSelector.value = today;
+            currentCity = "all";
+            cityFilter.value = "all";
+            
+            renderSchedule();
+            
+            // 滚动到当前时间附近的任务
+            scrollToCurrentTask();
+        }
+
+        // 静默定位当前时间（仅高亮，不滚动和弹窗）
+        function locateCurrentTimeSilent() {
+            const now = new Date();
+            const today = now.toISOString().split('T')[0];
+            const validDates = ["2025-05-25", "2025-05-26", "2025-05-27", "2025-05-28", "2025-05-29"];
+            
+            if (!validDates.includes(today)) {
+                return;
+            }
+            
+            // 如果当前日期不是选中的日期，不做任何操作
+            if (currentDate !== today) {
+                return;
+            }
+            
+            // 高亮当前任务
+            highlightCurrentTask();
+        }
+
+        // 滚动到当前任务
+        function scrollToCurrentTask() {
+            const now = new Date();
+            const currentHour = now.getHours();
+            const currentMinute = now.getMinutes();
+            const currentTimeMinutes = currentHour * 60 + currentMinute;
+            
+            const filteredData = filterData();
+            let closestIndex = 0;
+            let minDiff = Infinity;
+            
+            filteredData.forEach((task, index) => {
+                if (task.time_segment) {
+                    const [hour, minute] = task.time_segment.split(':').map(Number);
+                    const taskTimeMinutes = hour * 60 + minute;
+                    const diff = Math.abs(taskTimeMinutes - currentTimeMinutes);
+                    
+                    if (diff < minDiff) {
+                        minDiff = diff;
+                        closestIndex = index;
+                    }
+                }
+            });
+            
+            // 高亮显示最接近的任务
+            setTimeout(() => {
+                const taskElements = document.querySelectorAll('.task-card, tbody tr');
+                if (taskElements[closestIndex]) {
+                    taskElements[closestIndex].scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    
+                    // 移除所有高亮
+                    taskElements.forEach(el => el.classList.remove('current-time', 'border-red-500'));
+                    
+                    // 添加高亮
+                    taskElements[closestIndex].classList.add('current-time', 'border-red-500');
+                }
+            }, 300);
+        }
+
+        // 仅高亮当前任务
+        function highlightCurrentTask() {
+            const now = new Date();
+            const currentHour = now.getHours();
+            const currentMinute = now.getMinutes();
+            const currentTimeMinutes = currentHour * 60 + currentMinute;
+            
+            const filteredData = filterData();
+            let closestIndex = 0;
+            let minDiff = Infinity;
+            
+            filteredData.forEach((task, index) => {
+                if (task.time_segment) {
+                    const [hour, minute] = task.time_segment.split(':').map(Number);
+                    const taskTimeMinutes = hour * 60 + minute;
+                    const diff = Math.abs(taskTimeMinutes - currentTimeMinutes);
+                    
+                    if (diff < minDiff) {
+                        minDiff = diff;
+                        closestIndex = index;
+                    }
+                }
+            });
+            
+            const taskElements = document.querySelectorAll('.task-card, tbody tr');
+            if (taskElements[closestIndex]) {
+                // 移除所有高亮
+                taskElements.forEach(el => el.classList.remove('current-time', 'border-red-500'));
+                
+                // 添加高亮
+                taskElements[closestIndex].classList.add('current-time', 'border-red-500');
+            }
+        }
+
+        // 启动应用
+        init();
+    </script>
+</body>
+</html>
