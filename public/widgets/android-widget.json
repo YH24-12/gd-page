@@ -1,0 +1,100 @@
+{
+  "name": "Calendar 2.0",
+  "description": "出差路线规划与日程管理",
+  "app_url": "calendar2://",
+  "widget_type": "kontacts",
+  "version": "1.0",
+
+  "global": {
+    "background": {
+      "type": "solid",
+      "color": "#ffffff",
+      "dark_color": "#1e293b"
+    },
+    "corner_radius": 16,
+    "padding": 12
+  },
+
+  "objects": [
+    {
+      "type": "text",
+      "text": "Calendar 2.0",
+      "color": "#1e293b",
+      "dark_color": "#f1f5f9",
+      "font_size": 14,
+      "font_style": "bold",
+      "position_x": "50%",
+      "position_y": "8",
+      "align": "center"
+    },
+    {
+      "type": "text",
+      "text": "{{TODAY_DATE}}",
+      "color": "#64748b",
+      "dark_color": "#94a3b8",
+      "font_size": 10,
+      "position_x": "50%",
+      "position_y": "26",
+      "align": "center"
+    },
+    {
+      "type": "separator",
+      "color": "#e2e8f0",
+      "dark_color": "#334155",
+      "position_x": "10",
+      "position_y": "38",
+      "width": "80",
+      "height": 1
+    },
+    {
+      "type": "text",
+      "text": "{{SCHEDULE_1_TIME}} {{SCHEDULE_1_TITLE}}",
+      "color": "#2563eb",
+      "dark_color": "#3b82f6",
+      "font_size": 11,
+      "position_x": "10",
+      "position_y": "48",
+      "width": "80"
+    },
+    {
+      "type": "text",
+      "text": "{{SCHEDULE_2_TIME}} {{SCHEDULE_2_TITLE}}",
+      "color": "#2563eb",
+      "dark_color": "#3b82f6",
+      "font_size": 11,
+      "position_x": "10",
+      "position_y": "62",
+      "width": "80"
+    },
+    {
+      "type": "text",
+      "text": "{{SCHEDULE_3_TIME}} {{SCHEDULE_3_TITLE}}",
+      "color": "#2563eb",
+      "dark_color": "#3b82f6",
+      "font_size": 11,
+      "position_x": "10",
+      "position_y": "76",
+      "width": "80"
+    },
+    {
+      "type": "text",
+      "text": "点击查看全部",
+      "color": "#94a3b8",
+      "dark_color": "#64748b",
+      "font_size": 9,
+      "position_x": "50%",
+      "position_y": "95",
+      "align": "center"
+    }
+  ],
+
+  "click": {
+    "app": "calendar2://"
+  },
+
+  "data_source": {
+    "type": "json",
+    "url": "file://documents/calendar_widget.json",
+    "refresh_interval": 900
+  }
+}
