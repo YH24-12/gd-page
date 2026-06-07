@@ -22,7 +22,8 @@ export default defineConfig({
         manualChunks: {
           'react-vendor': ['react', 'react-dom', 'react-router-dom'],
           'leaflet-vendor': ['leaflet', 'react-leaflet'],
-          'export-vendor': ['jspdf', 'xlsx', 'html2canvas']
+          'export-vendor': ['jspdf', 'xlsx', 'html2canvas'],
+          'file-parser': ['pdfjs-dist', 'mammoth', 'jszip']
         }
       }
     }

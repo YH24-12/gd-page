@@ -5,6 +5,7 @@ import CustomersPage from './pages/CustomersPage'
 import SchedulesPage from './pages/SchedulesPage'
 import AIGeneratePage from './pages/AIGeneratePage'
 import SettingsPage from './pages/SettingsPage'
+import ImportPage from './pages/ImportPage'
 import './App.css'
 
 function App() {
@@ -16,6 +17,7 @@ function App() {
           <Route path="/customers" element={<CustomersPage />} />
           <Route path="/schedules" element={<SchedulesPage />} />
           <Route path="/ai-generate" element={<AIGeneratePage />} />
+          <Route path="/import" element={<ImportPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

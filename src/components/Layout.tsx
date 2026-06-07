@@ -1,6 +1,6 @@
 import { ReactNode } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Calendar, Users, ListTodo, Sparkles, Settings } from 'lucide-react'
+import { Calendar, Users, ListTodo, Sparkles, Settings, Upload } from 'lucide-react'
 
 interface LayoutProps { children: ReactNode }
 
@@ -9,6 +9,7 @@ export default function Layout({ children }: LayoutProps) {
   const navItems = [
     { path: '/', icon: Calendar, label: '仪表盘' },
     { path: '/customers', icon: Users, label: '客户管理' },
+    { path: '/import', icon: Upload, label: '导入客户' },
     { path: '/schedules', icon: ListTodo, label: '日程管理' },
     { path: '/ai-generate', icon: Sparkles, label: 'AI生成' },
     { path: '/settings', icon: Settings, label: '设置' }

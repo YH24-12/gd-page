@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useCustomerStore } from '../stores/customerStore'
 import type { Customer } from '../stores/customerStore'
 
 export default function CustomersPage() {
+  const navigate = useNavigate()
   const { customers, loadCustomers, addCustomer, updateCustomer, deleteCustomer } = useCustomerStore()
   const [searchQuery, setSearchQuery] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null)
+  const [viewingCustomer, setViewingCustomer] = useState<Customer | null>(null)
   const [formData, setFormData] = useState({
     shortName: '',
     companyName: '',
@@ -63,12 +66,6 @@ export default function CustomersPage() {
     setShowModal(true)
   }
 
-  const handleDelete = async (id: string) => {
-    if (confirm('确定要删除这个客户吗？')) {
-      await deleteCustomer(id)
-    }
-  }
-
   return (
     <div className="p-4">
       <header className="flex justify-between items-center mb-6">
@@ -76,12 +73,20 @@ export default function CustomersPage() {
           <h1 className="text-2xl font-bold">客户管理</h1>
           <p className="text-gray-500 text-sm">共 {customers.length} 个客户</p>
         </div>
-        <button
-          className="bg-blue-500 text-white px-4 py-2 rounded-lg"
-          onClick={() => setShowModal(true)}
-        >
-          + 添加客户
-        </button>
+        <div className="flex gap-2">
+          <button
+            className="bg-green-500 text-white px-4 py-2 rounded-lg"
+            onClick={() => navigate('/import')}
+          >
+            导入客户
+          </button>
+          <button
+            className="bg-blue-500 text-white px-4 py-2 rounded-lg"
+            onClick={() => setShowModal(true)}
+          >
+            + 添加客户
+          </button>
+        </div>
       </header>
 
       <div className="mb-4">
@@ -96,27 +101,18 @@ export default function CustomersPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredCustomers.map((customer: Customer) => (
-          <div key={customer.id} className="bg-white border rounded-lg p-4 shadow-sm">
+          <div
+            key={customer.id}
+            className="bg-white border rounded-lg p-4 shadow-sm hover:shadow-md hover:border-blue-300 cursor-pointer transition-all"
+            onClick={() => setViewingCustomer(customer)}
+          >
             <h3 className="font-bold text-lg">{customer.shortName}</h3>
             <p className="text-gray-600 text-sm mb-2">{customer.companyName}</p>
             {customer.city && <p className="text-sm">🏙️ {customer.city}</p>}
             {customer.address && <p className="text-sm">📍 {customer.address}</p>}
             {customer.contactPerson && <p className="text-sm">👤 {customer.contactPerson}</p>}
             {customer.phone && <p className="text-sm">📞 {customer.phone}</p>}
-            <div className="flex gap-2 mt-3">
-              <button
-                className="text-blue-500 text-sm"
-                onClick={() => handleEdit(customer)}
-              >
-                编辑
-              </button>
-              <button
-                className="text-red-500 text-sm"
-                onClick={() => handleDelete(customer.id)}
-              >
-                删除
-              </button>
-            </div>
+            <p className="text-xs text-gray-400 mt-2">点击查看详情</p>
           </div>
         ))}
       </div>
@@ -127,6 +123,95 @@ export default function CustomersPage() {
         </div>
       )}
 
+      {/* 客户详情弹窗 */}
+      {viewingCustomer && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => setViewingCustomer(null)}
+        >
+          <div
+            className="bg-white rounded-lg p-6 w-full max-w-lg"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold">客户详情</h2>
+              <button
+                onClick={() => setViewingCustomer(null)}
+                className="text-gray-500 text-xl px-2"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm text-gray-500">客户简称</label>
+                <p className="font-medium text-lg">{viewingCustomer.shortName}</p>
+              </div>
+              <div>
+                <label className="text-sm text-gray-500">公司全称</label>
+                <p className="font-medium">{viewingCustomer.companyName}</p>
+              </div>
+              {viewingCustomer.city && (
+                <div>
+                  <label className="text-sm text-gray-500">城市</label>
+                  <p className="text-lg">🏙️ {viewingCustomer.city}</p>
+                </div>
+              )}
+              {viewingCustomer.address && (
+                <div>
+                  <label className="text-sm text-gray-500">详细地址</label>
+                  <p className="text-lg">📍 {viewingCustomer.address}</p>
+                </div>
+              )}
+              {viewingCustomer.contactPerson && (
+                <div>
+                  <label className="text-sm text-gray-500">联系人</label>
+                  <p className="text-lg">👤 {viewingCustomer.contactPerson}</p>
+                </div>
+              )}
+              {viewingCustomer.phone && (
+                <div>
+                  <label className="text-sm text-gray-500">联系电话</label>
+                  <p className="text-lg">📞 {viewingCustomer.phone}</p>
+                </div>
+              )}
+              {viewingCustomer.notes && (
+                <div>
+                  <label className="text-sm text-gray-500">备注</label>
+                  <p className="bg-gray-50 rounded p-3 whitespace-pre-wrap">{viewingCustomer.notes}</p>
+                </div>
+              )}
+              <div className="text-xs text-gray-400 pt-2">
+                更新时间：{new Date(viewingCustomer.updateTime).toLocaleString('zh-CN')}
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 mt-6">
+              <button
+                onClick={() => {
+                  setViewingCustomer(null)
+                  handleEdit(viewingCustomer)
+                }}
+                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+              >
+                编辑
+              </button>
+              <button
+                onClick={() => {
+                  if (confirm('确定要删除这个客户吗？')) {
+                    deleteCustomer(viewingCustomer.id)
+                    setViewingCustomer(null)
+                  }
+                }}
+                className="px-4 py-2 border border-red-500 text-red-500 rounded hover:bg-red-50"
+              >
+                删除
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 添加/编辑客户弹窗 */}
       {showModal && (
         <div
           className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
