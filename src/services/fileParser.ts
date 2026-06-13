@@ -8,6 +8,7 @@ import mammoth from 'mammoth'
 import * as pdfjsLib from 'pdfjs-dist'
 import JSZip from 'jszip'
 import Tesseract from 'tesseract.js'
+import { randomUUID } from '../utils/uuid'
 
 // 设置 PDF.js worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`
@@ -285,16 +286,7 @@ async function parseExcelEnhanced(
           // 获取合并单元格信息
           const merges = sheet['!merges'] || []
 
-          // 生成完整的表头数组 - 从第0行获取所有列
-          const headers: string[] = []
-          for (let c = 0; c <= maxCol; c++) {
-            const cellAddress = XLSX.utils.encode_cell({ r: 0, c })
-            const cell = sheet[cellAddress]
-            const headerValue = cell ? cleanCellValue(processExcelCellValue(cell.v, cell.t)) : ''
-            headers.push(headerValue || `列${c + 1}`)  // 如果表头为空，显示"列X"
-          }
-
-          // 构建合并单元格的映射，用于快速查找
+          // 构建合并单元格的映射，用于快速查找（必须在读取表头之前）
           const mergeMap = new Map<string, { r: number; c: number }>()
           for (const merge of merges) {
             for (let r = merge.s.r; r <= merge.e.r; r++) {
@@ -302,6 +294,25 @@ async function parseExcelEnhanced(
                 mergeMap.set(XLSX.utils.encode_cell({ r, c }), { r: merge.s.r, c: merge.s.c })
               }
             }
+          }
+
+          // 生成完整的表头数组 - 从第0行获取所有列
+          const headers: string[] = []
+          for (let c = 0; c <= maxCol; c++) {
+            const cellAddress = XLSX.utils.encode_cell({ r: 0, c })
+            // 检查是否是合并单元格的一部分
+            const mergeInfo = mergeMap.get(cellAddress)
+            let headerValue = ''
+            if (mergeInfo) {
+              // 使用合并范围的主单元格值
+              const masterAddress = XLSX.utils.encode_cell({ r: mergeInfo.r, c: mergeInfo.c })
+              const masterCell = sheet[masterAddress]
+              headerValue = masterCell ? cleanCellValue(processExcelCellValue(masterCell.v, masterCell.t)) : ''
+            } else {
+              const cell = sheet[cellAddress]
+              headerValue = cell ? cleanCellValue(processExcelCellValue(cell.v, cell.t)) : ''
+            }
+            headers.push(headerValue || `列${c + 1}`)  // 如果表头为空，显示"列X"
           }
 
           // 生成完整的数据数组 -包含所有行和所有列
@@ -320,7 +331,8 @@ async function parseExcelEnhanced(
               const mergeInfo = mergeMap.get(cellAddress)
               if (mergeInfo) {
                 // 使用合并范围的主单元格值
-                const masterCell = sheet[cellAddress] // 复用当前cell引用
+                const masterAddress = XLSX.utils.encode_cell({ r: mergeInfo.r, c: mergeInfo.c })
+                const masterCell = sheet[masterAddress]
                 const value = masterCell ? cleanCellValue(processExcelCellValue(masterCell.v, masterCell.t)) : ''
                 row.push(value)
                 if (value) hasData = true
@@ -341,7 +353,7 @@ async function parseExcelEnhanced(
             if (hasData) {
               rawData.push(row)
               dataRows.push({
-                _id: crypto.randomUUID(),
+                _id: randomUUID(),
                 _rowIndex: rowCounter++,
                 cells: row
               })
@@ -351,7 +363,7 @@ async function parseExcelEnhanced(
           // 如果没有数据行，使用表头数量生成空数据
           if (dataRows.length === 0) {
             dataRows.push({
-              _id: crypto.randomUUID(),
+              _id: randomUUID(),
               _rowIndex: 0,
               cells: []
             })
@@ -546,7 +558,7 @@ async function parsePDFEnhanced(
 
         // 转换为 ParsedRow 格式
         const parsedRows: ParsedRow[] = dataRows.map((row, idx) => ({
-          _id: crypto.randomUUID(),
+          _id: randomUUID(),
           _rowIndex: idx,
           cells: row
         }))
@@ -637,7 +649,7 @@ async function parseWordEnhanced(
           resolve([{
             name: 'Word内容',
             headers: ['内容'],
-            data: lines.map((line, idx) => ({ _id: crypto.randomUUID(), _rowIndex: idx, cells: [line] })),
+            data: lines.map((line, idx) => ({ _id: randomUUID(), _rowIndex: idx, cells: [line] })),
             rawData: lines.map(line => [line])
           }])
           return
@@ -666,7 +678,7 @@ async function parseWordEnhanced(
 
         // 转换为 ParsedRow 格式
         const parsedRows: ParsedRow[] = dataRows.map((row, idx) => ({
-          _id: crypto.randomUUID(),
+          _id: randomUUID(),
           _rowIndex: idx,
           cells: row
         }))
@@ -733,7 +745,7 @@ async function parsePowerPointEnhanced(
 
         // 转换为 ParsedRow 格式
         const parsedRows: ParsedRow[] = slides.map((slide, idx) => ({
-          _id: crypto.randomUUID(),
+          _id: randomUUID(),
           _rowIndex: idx,
           cells: slide
         }))
@@ -804,7 +816,7 @@ async function parseTextEnhanced(
 
         // 转换为 ParsedRow 格式
         const parsedRows: ParsedRow[] = dataRows.map((row, idx) => ({
-          _id: crypto.randomUUID(),
+          _id: randomUUID(),
           _rowIndex: idx,
           cells: row
         }))
@@ -822,7 +834,7 @@ async function parseTextEnhanced(
 
         // 转换为 ParsedRow 格式
         const parsedRows: ParsedRow[] = lines.map((line, i) => ({
-          _id: crypto.randomUUID(),
+          _id: randomUUID(),
           _rowIndex: i,
           cells: [String(i + 1), line.trim()]
         }))

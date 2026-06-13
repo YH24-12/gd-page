@@ -6,20 +6,21 @@ import { useFileStore } from '../stores/fileStore'
 import { parseFile, type ParseProgress } from '../services/fileParser'
 import FilePreviewModal, { ParseProgressBar } from '../components/FilePreviewModal'
 import type { ImportedFile } from '../stores/fileStore'
+import { type CustomerStage } from '../types/customer'
 
 interface ParsedCustomer {
   id: string
-  shortName: string
   companyName: string
   city: string
   address: string
   contactPerson: string
   phone: string
+  stage: CustomerStage
   notes: string
 }
 
 function AIGeneratePage() {
-  const { customers, addCustomer, loadCustomers } = useCustomerStore()
+  const { customers, addCustomer, loadCustomers, updateCustomer } = useCustomerStore()
   const { addSchedule } = useScheduleStore()
   const { files, loadFiles, addFile, removeFile } = useFileStore()
   const [prompt, setPrompt] = useState('')
@@ -34,6 +35,15 @@ function AIGeneratePage() {
   const [selectedCustomers, setSelectedCustomers] = useState<Set<string>>(new Set())
   const [parseProgress, setParseProgress] = useState<ParseProgress | null>(null)
   const [showProgress, setShowProgress] = useState(false)
+
+  // 重复客户确认
+  const [duplicateCustomers, setDuplicateCustomers] = useState<Array<{
+    data: ParsedCustomer
+    existingId: string
+  }>>([])
+  const [selectedDuplicates, setSelectedDuplicates] = useState<Set<string>>(new Set())
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false)
+
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -91,7 +101,7 @@ function AIGeneratePage() {
         })
 
         const fileData: ImportedFile = {
-          id: crypto.randomUUID(),
+          id: uuidv4(),
           name: file.name,
           type: parsed.mimeType,
           size: file.size,
@@ -131,7 +141,7 @@ function AIGeneratePage() {
     setLoading(true)
     try {
       const matchedCustomers = customers.filter(c =>
-        prompt.includes(c.shortName) || prompt.includes(c.companyName)
+        prompt.includes(c.companyName)
       )
 
       const fileContext = buildFileContext()
@@ -139,7 +149,7 @@ function AIGeneratePage() {
       const fullPrompt = `你是一个销售出差行程规划助手。根据用户需求生成出差日程。
 
 ## 可用客户资料
-${matchedCustomers.map(c => `- ${c.shortName}（${c.companyName}）：地址=${c.address}，联系人=${c.contactPerson}，电话=${c.phone}`).join('\n')}
+${matchedCustomers.map(c => `- ${c.companyName}：地址=${c.address}，联系人=${c.contactPerson}，电话=${c.phone}`).join('\n')}
 ${fileContext}
 ## 用户需求
 ${prompt}
@@ -219,10 +229,9 @@ ${fileContext}
 ${fileContext}
 
 ## 输出要求
-返回 JSON，格式为 {"customers": [{"shortName": "客户简称", "companyName": "公司全称", "city": "城市", "address": "详细地址", "contactPerson": "联系人姓名", "phone": "联系电话", "notes": "备注"}]}
+返回 JSON，格式为 {"customers": [{"companyName": "公司全称", "city": "城市", "address": "详细地址", "contactPerson": "联系人姓名", "phone": "联系电话", "notes": "备注"}]}
 
 规则：
-- shortName 是公司简称，如无简称则取公司名前几个字
 - 只提取明确的客户/公司信息，不要编造
 - 如果某个字段没有对应信息，填空字符串
 - 只返回 JSON，不要其他内容`
@@ -232,7 +241,6 @@ ${fileContext}
 
       const customerList: ParsedCustomer[] = (parsed.customers || parsed.data || parsed.items || []).map((c: any) => ({
         id: uuidv4(),
-        shortName: c.shortName || '',
         companyName: c.companyName || '',
         city: c.city || '',
         address: c.address || '',
@@ -251,24 +259,79 @@ ${fileContext}
 
   const handleConfirmAddCustomers = async () => {
     const toAdd = parsedCustomers.filter(c => selectedCustomers.has(c.id))
+
+    // 检测重复客户
+    const duplicates: Array<{ data: ParsedCustomer; existingId: string }> = []
+    for (const c of toAdd) {
+      const existing = customers.find(existing => existing.companyName === c.companyName)
+      if (existing) {
+        duplicates.push({ data: c, existingId: existing.id })
+      }
+    }
+
+    // 如果有重复客户，显示确认弹窗
+    if (duplicates.length > 0) {
+      setDuplicateCustomers(duplicates)
+      setSelectedDuplicates(new Set(duplicates.map(d => d.existingId)))
+      setShowDuplicateModal(true)
+      return
+    }
+
+    // 没有重复客户，直接添加
+    await doAddCustomers()
+  }
+
+  // 执行添加客户（添加新客户 + 更新选中的重复客户）
+  const doAddCustomers = async () => {
+    const toAdd = parsedCustomers.filter(c => selectedCustomers.has(c.id))
     let added = 0
+    let updated = 0
     let skipped = 0
 
     for (const c of toAdd) {
-      const exists = customers.some(
-        existing => existing.companyName === c.companyName || existing.shortName === c.shortName
-      )
-      if (exists) {
-        skipped++
-        continue
+      const existing = customers.find(existing => existing.companyName === c.companyName)
+
+      if (existing) {
+        if (selectedDuplicates.has(existing.id)) {
+          await updateCustomer(existing.id, c)
+          updated++
+        } else {
+          skipped++
+        }
+      } else {
+        await addCustomer(c)
+        added++
       }
-      await addCustomer(c)
-      added++
     }
 
-    alert(`成功添加 ${added} 个客户${skipped > 0 ? `，跳过 ${skipped} 个已存在客户` : ''}`)
+    alert(`添加完成：新增 ${added} 个，更新 ${updated} 个${skipped > 0 ? `，跳过 ${skipped} 个` : ''}`)
     setParsedCustomers([])
     setSelectedCustomers(new Set())
+    setDuplicateCustomers([])
+    setSelectedDuplicates(new Set())
+    setShowDuplicateModal(false)
+  }
+
+  // 切换重复客户选择
+  const toggleDuplicateSelection = (existingId: string) => {
+    setSelectedDuplicates(prev => {
+      const next = new Set(prev)
+      if (next.has(existingId)) {
+        next.delete(existingId)
+      } else {
+        next.add(existingId)
+      }
+      return next
+    })
+  }
+
+  // 全选/取消全选重复客户
+  const toggleSelectAllDuplicates = () => {
+    if (selectedDuplicates.size === duplicateCustomers.length) {
+      setSelectedDuplicates(new Set())
+    } else {
+      setSelectedDuplicates(new Set(duplicateCustomers.map(d => d.existingId)))
+    }
   }
 
   const toggleCustomerSelection = (id: string) => {
@@ -447,6 +510,94 @@ ${fileContext}
       {/* 解析进度条 */}
       <ParseProgressBar progress={parseProgress!} visible={showProgress} />
 
+      {/* 重复客户更新确认弹窗 */}
+      {showDuplicateModal && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => { setShowDuplicateModal(false); setDuplicateCustomers([]); setSelectedDuplicates(new Set()) }}
+        >
+          <div
+            className="bg-white rounded-lg p-6 w-full max-w-lg max-h-[80vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-orange-600">检测到 {duplicateCustomers.length} 个重复客户</h2>
+              <button
+                onClick={() => { setShowDuplicateModal(false); setDuplicateCustomers([]); setSelectedDuplicates(new Set()) }}
+                className="text-gray-500 text-xl px-2"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="text-gray-600 mb-4">
+              以下客户已存在，请勾选要更新的客户（勾选后将覆盖现有数据）：
+            </p>
+
+            <div className="mb-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={selectedDuplicates.size === duplicateCustomers.length}
+                  onChange={toggleSelectAllDuplicates}
+                  className="w-4 h-4"
+                />
+                <span className="text-sm font-medium">全选</span>
+              </label>
+            </div>
+
+            <div className="space-y-2 mb-4 max-h-64 overflow-y-auto">
+              {duplicateCustomers.map(({ data, existingId }) => (
+                <div
+                  key={existingId}
+                  className={`border rounded p-3 cursor-pointer transition-colors ${
+                    selectedDuplicates.has(existingId)
+                      ? 'bg-orange-50 border-orange-400'
+                      : 'bg-white hover:bg-gray-50'
+                  }`}
+                  onClick={() => toggleDuplicateSelection(existingId)}
+                >
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={selectedDuplicates.has(existingId)}
+                      onChange={() => toggleDuplicateSelection(existingId)}
+                      className="mt-1 shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-lg">{data.companyName}</p>
+                      <div className="text-sm text-gray-500 flex gap-3 flex-wrap mt-1">
+                        {data.city && <span>🏙️ {data.city}</span>}
+                        {data.contactPerson && <span>👤 {data.contactPerson}</span>}
+                        {data.phone && <span>📞 {data.phone}</span>}
+                      </div>
+                    </div>
+                  </label>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => {
+                  setShowDuplicateModal(false)
+                  setDuplicateCustomers([])
+                  setSelectedDuplicates(new Set())
+                }}
+                className="px-4 py-2 border rounded hover:bg-gray-50"
+              >
+                全部跳过
+              </button>
+              <button
+                onClick={doAddCustomers}
+                className="px-4 py-2 bg-orange-500 text-white rounded hover:bg-orange-600 disabled:bg-gray-300"
+              >
+                {`确认更新 ${selectedDuplicates.size} 个客户`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* AI 解析客户结果 */}
       {parsedCustomers.length > 0 && (
         <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
@@ -478,8 +629,7 @@ ${fileContext}
                 />
                 <div className="flex-1 min-w-0">
                   <div className="flex gap-2 flex-wrap">
-                    <span className="font-medium">{c.shortName}</span>
-                    <span className="text-gray-600">{c.companyName}</span>
+                    <span className="font-medium">{c.companyName}</span>
                   </div>
                   <div className="text-sm text-gray-500 flex gap-3 flex-wrap mt-1">
                     {c.city && <span>🏙️ {c.city}</span>}

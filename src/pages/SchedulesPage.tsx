@@ -446,7 +446,7 @@ function SchedulesPage() {
                       <option value="">选择客户（可选）</option>
                       {customers.map(c => (
                         <option key={c.id} value={c.id}>
-                          {c.shortName} - {c.companyName}
+                          {c.companyName}
                         </option>
                       ))}
                     </select>

@@ -1,16 +1,47 @@
 import { create } from 'zustand'
 import { nanoid } from 'nanoid'
+import { CUSTOMER_STAGES, type CustomerStage } from '../types/customer'
 
 export interface Customer {
   id: string
   companyName: string
-  shortName: string
   city: string
   address: string
   contactPerson: string
   phone: string
+  stage: CustomerStage
   notes: string
+  longitude?: number
+  latitude?: number
   updateTime: string
+}
+
+// 从 Excel 数据中解析客户阶段
+export function parseCustomerStage(value: string | undefined): CustomerStage {
+  if (!value) return CUSTOMER_STAGES[0]
+  const normalized = value.trim().toLowerCase()
+  // 支持多种格式：数字+文字、纯文字
+  const stageMap: Record<string, CustomerStage> = {
+    '1线索跟踪': '线索跟踪',
+    '1': '线索跟踪',
+    '线索跟踪': '线索跟踪',
+    '2送样完成': '送样完成',
+    '2': '送样完成',
+    '送样完成': '送样完成',
+    '3内部准备': '内部准备',
+    '3': '内部准备',
+    '内部准备': '内部准备',
+    '4客户评估': '客户评估',
+    '4': '客户评估',
+    '客户评估': '客户评估',
+    '5投标竞争': '投标竞争',
+    '5': '投标竞争',
+    '投标竞争': '投标竞争',
+    '6客户下单': '客户下单',
+    '6': '客户下单',
+    '客户下单': '客户下单'
+  }
+  return stageMap[normalized] || CUSTOMER_STAGES[0]
 }
 
 interface CustomerState {
@@ -47,6 +78,7 @@ export const useCustomerStore = create<CustomerState>((set, get) => ({
     const customer: Customer = {
       id: nanoid(),
       ...data,
+      stage: data.stage || CUSTOMER_STAGES[0],
       updateTime: new Date().toISOString()
     }
     const customers = [...get().customers, customer]
@@ -77,7 +109,6 @@ export const useCustomerStore = create<CustomerState>((set, get) => ({
     const q = query.toLowerCase()
     return get().customers.filter(c =>
       c.companyName.toLowerCase().includes(q) ||
-      c.shortName.toLowerCase().includes(q) ||
       c.city.toLowerCase().includes(q) ||
       c.contactPerson.toLowerCase().includes(q)
     )

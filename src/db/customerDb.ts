@@ -6,8 +6,8 @@ export class ItineraryDB extends Dexie {
 
   constructor() {
     super('ItineraryDB')
-    this.version(1).stores({
-      customers: 'id, companyName, shortName, city, contactPerson, updateTime'
+    this.version(2).stores({
+      customers: 'id, companyName, city, contactPerson, updateTime'
     })
   }
 }
@@ -40,7 +40,6 @@ export const customerDb = {
     return db.customers
       .filter(c =>
         c.companyName.toLowerCase().includes(q) ||
-        c.shortName.toLowerCase().includes(q) ||
         c.city.toLowerCase().includes(q) ||
         c.contactPerson.toLowerCase().includes(q) ||
         c.phone.includes(q)

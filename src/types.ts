@@ -12,7 +12,6 @@ export interface User {
 // 客户管理 (与数据库 schema 保持一致)
 export interface Customer {
   id: string
-  shortName: string
   companyName: string
   city: string
   address: string
@@ -24,7 +23,6 @@ export interface Customer {
 
 // 客户表单数据
 export interface CustomerFormData {
-  shortName: string
   companyName: string
   city: string
   address: string

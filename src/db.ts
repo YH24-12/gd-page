@@ -10,9 +10,9 @@ export class TeamCalendarDB extends Dexie {
 
   constructor() {
     super('TeamCalendarDB')
-    this.version(1).stores({
+    this.version(2).stores({
       users: 'id, name, email, role, department',
-      customers: 'id, shortName, companyName, industry, createdAt, updatedAt',
+      customers: 'id, companyName, industry, createdAt, updatedAt',
       customerAddresses: 'id, customerId, type',
       scheduleItems: 'id, teamId, date, time, type, status, createdAt, updatedAt',
       itineraryPlans: 'id, name, createdAt, updatedAt'

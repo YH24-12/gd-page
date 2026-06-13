@@ -68,7 +68,7 @@ interface SheetRawData {
 
 function ImportPage() {
   const navigate = useNavigate()
-  const { customers, loadCustomers, addCustomer } = useCustomerStore()
+  const { customers, loadCustomers, addCustomer, updateCustomer } = useCustomerStore()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [uploading, setUploading] = useState(false)
@@ -89,6 +89,14 @@ function ImportPage() {
   const [selectedSheetIndex, setSelectedSheetIndex] = useState(0)
   const [headerRowIndex, setHeaderRowIndex] = useState(0)
   const [sheetRawData, setSheetRawData] = useState<Map<number, SheetRawData>>(new Map())
+
+  // 重复客户确认
+  const [duplicateCustomers, setDuplicateCustomers] = useState<Array<{
+    data: CustomerData
+    existingId: string
+  }>>([])
+  const [selectedDuplicates, setSelectedDuplicates] = useState<Set<string>>(new Set())
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false)
 
   // 映射列表
   const [mappingList, setMappingList] = useState<MappingItem[]>(() =>
@@ -122,11 +130,32 @@ function ImportPage() {
     fileInputRef.current?.click()
   }
 
+  // Excel 列名转数字（A=0, Z=25, AA=26, AD=29）
+  const colNameToIndex = (colName: string): number => {
+    let index = 0
+    for (let i = 0; i < colName.length; i++) {
+      index = index * 26 + (colName.charCodeAt(i) - 64)
+    }
+    return index - 1
+  }
+
+  // 数字转 Excel 列名（0=A, 25=Z, 26=AA, 29=AD）
+  const indexToColName = (index: number): string => {
+    let name = ''
+    let i = index + 1
+    while (i > 0) {
+      const remainder = (i - 1) % 26
+      name = String.fromCharCode(65 + remainder) + name
+      i = Math.floor((i - 1) / 26)
+    }
+    return name
+  }
+
   // 从原始Sheet读取指定行的数据（不受合并单元格影响）
   const readRowFromSheet = (sheet: ExcelSheet, rowIndex: number, maxCol: number): string[] => {
     const row: string[] = []
     for (let c = 0; c <= maxCol; c++) {
-      const cellAddress = `${String.fromCharCode(65 + c)}${rowIndex + 1}`
+      const cellAddress = `${indexToColName(c)}${rowIndex + 1}`
       const cell = sheet[cellAddress]
       row.push(getCellValue(cell))
     }
@@ -139,7 +168,7 @@ function ImportPage() {
     const decoded = range.match(/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/)
     if (!decoded) return null
 
-    const maxCol = decoded[3].charCodeAt(0) - 65
+    const maxCol = colNameToIndex(decoded[3])
     const maxRow = parseInt(decoded[4]) - 1
 
     // 读取所有原始行（不处理合并单元格）
@@ -483,31 +512,85 @@ function ImportPage() {
       return
     }
 
+    // 检测重复客户
+    const duplicates: Array<{ data: CustomerData; existingId: string }> = []
+    for (const customer of extractedCustomers) {
+      const existing = customers.find(c => c.companyName === customer.companyName)
+      if (existing) {
+        duplicates.push({ data: customer, existingId: existing.id })
+      }
+    }
+
+    // 如果有重复客户，显示确认弹窗
+    if (duplicates.length > 0) {
+      setDuplicateCustomers(duplicates)
+      setSelectedDuplicates(new Set(duplicates.map(d => d.existingId)))
+      setShowDuplicateModal(true)
+      return
+    }
+
+    // 没有重复客户，直接导入
+    await doImport()
+  }
+
+  // 执行导入（添加新客户 + 更新选中的重复客户）
+  const doImport = async () => {
     setImporting(true)
+    setShowDuplicateModal(false)
 
     try {
       let added = 0
+      let updated = 0
       let skipped = 0
 
       for (const customer of extractedCustomers) {
-        const exists = customers.some(
-          c => c.companyName === customer.companyName || c.shortName === customer.shortName
-        )
-        if (exists) {
-          skipped++
-          continue
+        const existing = customers.find(c => c.companyName === customer.companyName)
+
+        if (existing) {
+          // 如果在选中的重复客户列表中，更新
+          if (selectedDuplicates.has(existing.id)) {
+            await updateCustomer(existing.id, customer)
+            updated++
+          } else {
+            skipped++
+          }
+        } else {
+          await addCustomer(customer)
+          added++
         }
-        await addCustomer(customer)
-        added++
       }
 
-      alert(`成功导入 ${added} 个客户${skipped > 0 ? `，跳过 ${skipped} 个已存在客户` : ''}`)
+      alert(`导入完成：新增 ${added} 个，更新 ${updated} 个${skipped > 0 ? `，跳过 ${skipped} 个` : ''}`)
       navigate('/customers')
     } catch (error) {
       console.error(error)
       alert('导入失败，请重试')
     } finally {
       setImporting(false)
+      setDuplicateCustomers([])
+      setSelectedDuplicates(new Set())
+    }
+  }
+
+  // 切换重复客户选择
+  const toggleDuplicateSelection = (existingId: string) => {
+    setSelectedDuplicates(prev => {
+      const next = new Set(prev)
+      if (next.has(existingId)) {
+        next.delete(existingId)
+      } else {
+        next.add(existingId)
+      }
+      return next
+    })
+  }
+
+  // 全选/取消全选重复客户
+  const toggleSelectAllDuplicates = () => {
+    if (selectedDuplicates.size === duplicateCustomers.length) {
+      setSelectedDuplicates(new Set())
+    } else {
+      setSelectedDuplicates(new Set(duplicateCustomers.map(d => d.existingId)))
     }
   }
 
@@ -529,6 +612,9 @@ function ImportPage() {
       columnIndex: idx
     })))
     setSelectedTemplate('')
+    setDuplicateCustomers([])
+    setSelectedDuplicates(new Set())
+    setShowDuplicateModal(false)
   }
 
   // 一键修复表头 - 针对苯基产品线客户跟踪周报
@@ -602,8 +688,12 @@ function ImportPage() {
         if (!quickFixMapping.address && headerLower.includes('地址')) {
           quickFixMapping.address = h
         }
-        // 备注/主要产品/阶段
-        if (!quickFixMapping.notes && (headerLower.includes('备注') || headerLower.includes('产品') || headerLower.includes('阶段'))) {
+        // 客户阶段
+        if (!quickFixMapping.stage && (headerLower.includes('阶段') || headerLower.includes('状态'))) {
+          quickFixMapping.stage = h
+        }
+        // 备注/主要产品
+        if (!quickFixMapping.notes && (headerLower.includes('备注') || headerLower.includes('产品'))) {
           quickFixMapping.notes = h
         }
       })
@@ -886,7 +976,6 @@ function ImportPage() {
               <thead>
                 <tr className="bg-gray-50">
                   <th className="border px-3 py-2 text-left">公司名称</th>
-                  <th className="border px-3 py-2 text-left">简称</th>
                   <th className="border px-3 py-2 text-left">城市</th>
                   <th className="border px-3 py-2 text-left">联系人</th>
                   <th className="border px-3 py-2 text-left">电话</th>
@@ -897,7 +986,6 @@ function ImportPage() {
                 {extractedCustomers.map((customer, index) => (
                   <tr key={customer.id} className="hover:bg-gray-50">
                     <td className="border px-3 py-2">{customer.companyName}</td>
-                    <td className="border px-3 py-2">{customer.shortName}</td>
                     <td className="border px-3 py-2">{customer.city}</td>
                     <td className="border px-3 py-2">{customer.contactPerson}</td>
                     <td className="border px-3 py-2">{customer.phone}</td>
@@ -944,25 +1032,14 @@ function ImportPage() {
                   className="w-full border rounded px-3 py-2"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm text-gray-600 mb-1">简称</label>
-                  <input
-                    type="text"
-                    value={editData.shortName}
-                    onChange={(e) => setEditData({ ...editData, shortName: e.target.value })}
-                    className="w-full border rounded px-3 py-2"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm text-gray-600 mb-1">城市</label>
-                  <input
-                    type="text"
-                    value={editData.city}
-                    onChange={(e) => setEditData({ ...editData, city: e.target.value })}
-                    className="w-full border rounded px-3 py-2"
-                  />
-                </div>
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">城市</label>
+                <input
+                  type="text"
+                  value={editData.city}
+                  onChange={(e) => setEditData({ ...editData, city: e.target.value })}
+                  className="w-full border rounded px-3 py-2"
+                />
               </div>
               <div>
                 <label className="block text-sm text-gray-600 mb-1">地址</label>
@@ -1015,6 +1092,95 @@ function ImportPage() {
                 className="px-4 py-2 bg-blue-500 text-white rounded"
               >
                 保存
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 重复客户更新确认弹窗 */}
+      {showDuplicateModal && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => { setShowDuplicateModal(false); setDuplicateCustomers([]); setSelectedDuplicates(new Set()) }}
+        >
+          <div
+            className="bg-white rounded-lg p-6 w-full max-w-lg max-h-[80vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-orange-600">检测到 {duplicateCustomers.length} 个重复客户</h2>
+              <button
+                onClick={() => { setShowDuplicateModal(false); setDuplicateCustomers([]); setSelectedDuplicates(new Set()) }}
+                className="text-gray-500 text-xl px-2"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="text-gray-600 mb-4">
+              以下客户已存在，请勾选要更新的客户（勾选后将覆盖现有数据）：
+            </p>
+
+            <div className="mb-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={selectedDuplicates.size === duplicateCustomers.length}
+                  onChange={toggleSelectAllDuplicates}
+                  className="w-4 h-4"
+                />
+                <span className="text-sm font-medium">全选</span>
+              </label>
+            </div>
+
+            <div className="space-y-2 mb-4 max-h-64 overflow-y-auto">
+              {duplicateCustomers.map(({ data, existingId }) => (
+                <div
+                  key={existingId}
+                  className={`border rounded p-3 cursor-pointer transition-colors ${
+                    selectedDuplicates.has(existingId)
+                      ? 'bg-orange-50 border-orange-400'
+                      : 'bg-white hover:bg-gray-50'
+                  }`}
+                  onClick={() => toggleDuplicateSelection(existingId)}
+                >
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={selectedDuplicates.has(existingId)}
+                      onChange={() => toggleDuplicateSelection(existingId)}
+                      className="mt-1 shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-lg">{data.companyName}</p>
+                      <div className="text-sm text-gray-500 flex gap-3 flex-wrap mt-1">
+                        {data.city && <span>🏙️ {data.city}</span>}
+                        {data.contactPerson && <span>👤 {data.contactPerson}</span>}
+                        {data.phone && <span>📞 {data.phone}</span>}
+                      </div>
+                    </div>
+                  </label>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => {
+                  setShowDuplicateModal(false)
+                  setDuplicateCustomers([])
+                  setSelectedDuplicates(new Set())
+                }}
+                className="px-4 py-2 border rounded hover:bg-gray-50"
+              >
+                全部跳过
+              </button>
+              <button
+                onClick={doImport}
+                disabled={importing || selectedDuplicates.size === 0}
+                className="px-4 py-2 bg-orange-500 text-white rounded hover:bg-orange-600 disabled:bg-gray-300"
+              >
+                {importing ? '导入中...' : `确认更新 ${selectedDuplicates.size} 个客户`}
               </button>
             </div>
           </div>

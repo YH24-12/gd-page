@@ -1,7 +1,37 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useCustomerStore } from '../stores/customerStore'
+import { CUSTOMER_STAGES, type CustomerStage } from '../types/customer'
 import type { Customer } from '../stores/customerStore'
+
+const STAGE_COLORS: Record<CustomerStage, string> = {
+  '线索跟踪': 'bg-gray-100 text-gray-700 border-gray-300',
+  '送样完成': 'bg-lime-50 text-lime-800 border-lime-400',
+  '内部准备': 'bg-amber-50 text-amber-800 border-amber-400',
+  '客户评估': 'bg-violet-50 text-violet-800 border-violet-400',
+  '投标竞争': 'bg-blue-50 text-blue-800 border-blue-400',
+  '客户下单': 'bg-emerald-50 text-emerald-800 border-emerald-400'
+}
+
+// 卡片整体样式（边框+背景）
+const STAGE_CARD_COLORS: Record<CustomerStage, string> = {
+  '线索跟踪': 'bg-gray-50 border-gray-300 hover:border-gray-400',
+  '送样完成': 'bg-lime-50 border-lime-400 hover:border-lime-500',
+  '内部准备': 'bg-amber-50 border-amber-400 hover:border-amber-500',
+  '客户评估': 'bg-violet-50 border-violet-400 hover:border-violet-500',
+  '投标竞争': 'bg-blue-50 border-blue-400 hover:border-blue-500',
+  '客户下单': 'bg-emerald-50 border-emerald-400 hover:border-emerald-500'
+}
+
+// 阶段排序（优先级从高到低）
+const STAGE_ORDER: Record<CustomerStage, number> = {
+  '客户下单': 1,
+  '投标竞争': 2,
+  '客户评估': 3,
+  '内部准备': 4,
+  '送样完成': 5,
+  '线索跟踪': 6
+}
 
 export default function CustomersPage() {
   const navigate = useNavigate()
@@ -11,12 +41,12 @@ export default function CustomersPage() {
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null)
   const [viewingCustomer, setViewingCustomer] = useState<Customer | null>(null)
   const [formData, setFormData] = useState({
-    shortName: '',
     companyName: '',
     city: '',
     address: '',
     contactPerson: '',
     phone: '',
+    stage: CUSTOMER_STAGES[0] as CustomerStage,
     notes: ''
   })
 
@@ -27,10 +57,16 @@ export default function CustomersPage() {
   const filteredCustomers = searchQuery
     ? customers.filter(c =>
         c.companyName.includes(searchQuery) ||
-        c.shortName.includes(searchQuery) ||
         c.city.includes(searchQuery)
       )
     : customers
+
+  // 按阶段排序（优先级：客户下单 > 投标竞争 > 客户评估 > 内部准备 > 送样完成 > 线索跟踪）
+  const sortedCustomers = [...filteredCustomers].sort((a, b) => {
+    const orderA = STAGE_ORDER[a.stage as CustomerStage] || 99
+    const orderB = STAGE_ORDER[b.stage as CustomerStage] || 99
+    return orderA - orderB
+  })
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -42,12 +78,12 @@ export default function CustomersPage() {
     setShowModal(false)
     setEditingCustomer(null)
     setFormData({
-      shortName: '',
       companyName: '',
       city: '',
       address: '',
       contactPerson: '',
       phone: '',
+      stage: CUSTOMER_STAGES[0] as CustomerStage,
       notes: ''
     })
   }
@@ -55,12 +91,12 @@ export default function CustomersPage() {
   const handleEdit = (customer: Customer) => {
     setEditingCustomer(customer)
     setFormData({
-      shortName: customer.shortName,
       companyName: customer.companyName,
       city: customer.city || '',
       address: customer.address || '',
       contactPerson: customer.contactPerson || '',
       phone: customer.phone || '',
+      stage: customer.stage || CUSTOMER_STAGES[0],
       notes: customer.notes || ''
     })
     setShowModal(true)
@@ -100,18 +136,28 @@ export default function CustomersPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredCustomers.map((customer: Customer) => (
+        {sortedCustomers.map((customer: Customer) => (
           <div
             key={customer.id}
-            className="bg-white border rounded-lg p-4 shadow-sm hover:shadow-md hover:border-blue-300 cursor-pointer transition-all"
+            className={`rounded-lg p-4 shadow-sm hover:shadow-md cursor-pointer transition-all border-2 ${
+              customer.stage && STAGE_CARD_COLORS[customer.stage]
+                ? STAGE_CARD_COLORS[customer.stage]
+                : 'bg-white border-gray-200 hover:border-gray-300'
+            }`}
             onClick={() => setViewingCustomer(customer)}
           >
-            <h3 className="font-bold text-lg">{customer.shortName}</h3>
-            <p className="text-gray-600 text-sm mb-2">{customer.companyName}</p>
-            {customer.city && <p className="text-sm">🏙️ {customer.city}</p>}
-            {customer.address && <p className="text-sm">📍 {customer.address}</p>}
-            {customer.contactPerson && <p className="text-sm">👤 {customer.contactPerson}</p>}
-            {customer.phone && <p className="text-sm">📞 {customer.phone}</p>}
+            <div className="flex justify-between items-start mb-2">
+              <h3 className="font-bold text-lg text-gray-800">{customer.companyName}</h3>
+              {customer.stage && (
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${STAGE_COLORS[customer.stage] || 'bg-gray-100 text-gray-700'}`}>
+                  {customer.stage}
+                </span>
+              )}
+            </div>
+            {customer.city && <p className="text-sm text-gray-600">🏙️ {customer.city}</p>}
+            {customer.address && <p className="text-sm text-gray-600">📍 {customer.address}</p>}
+            {customer.contactPerson && <p className="text-sm text-gray-600">👤 {customer.contactPerson}</p>}
+            {customer.phone && <p className="text-sm text-gray-600">📞 {customer.phone}</p>}
             <p className="text-xs text-gray-400 mt-2">点击查看详情</p>
           </div>
         ))}
@@ -144,13 +190,17 @@ export default function CustomersPage() {
             </div>
             <div className="space-y-3">
               <div>
-                <label className="text-sm text-gray-500">客户简称</label>
-                <p className="font-medium text-lg">{viewingCustomer.shortName}</p>
-              </div>
-              <div>
                 <label className="text-sm text-gray-500">公司全称</label>
-                <p className="font-medium">{viewingCustomer.companyName}</p>
+                <p className="font-medium text-lg">{viewingCustomer.companyName}</p>
               </div>
+              {viewingCustomer.stage && (
+                <div>
+                  <label className="text-sm text-gray-500">客户阶段</label>
+                  <p className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${STAGE_COLORS[viewingCustomer.stage] || 'bg-gray-100'}`}>
+                    {viewingCustomer.stage}
+                  </p>
+                </div>
+              )}
               {viewingCustomer.city && (
                 <div>
                   <label className="text-sm text-gray-500">城市</label>
@@ -228,14 +278,6 @@ export default function CustomersPage() {
               <div className="space-y-3">
                 <input
                   type="text"
-                  placeholder="简称 *"
-                  value={formData.shortName}
-                  onChange={(e) => setFormData({ ...formData, shortName: e.target.value })}
-                  required
-                  className="w-full border rounded px-3 py-2"
-                />
-                <input
-                  type="text"
                   placeholder="公司全称 *"
                   value={formData.companyName}
                   onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
@@ -270,6 +312,15 @@ export default function CustomersPage() {
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                   className="w-full border rounded px-3 py-2"
                 />
+                <select
+                  value={formData.stage}
+                  onChange={(e) => setFormData({ ...formData, stage: e.target.value as CustomerStage })}
+                  className="w-full border rounded px-3 py-2"
+                >
+                  {CUSTOMER_STAGES.map((stage) => (
+                    <option key={stage} value={stage}>{stage}</option>
+                  ))}
+                </select>
                 <textarea
                   placeholder="备注"
                   value={formData.notes}

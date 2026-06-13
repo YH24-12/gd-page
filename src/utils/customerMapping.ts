@@ -2,6 +2,19 @@
  * 客户信息映射规则引擎
  * 纯本地运行，无需网络
  */
+import { randomUUID } from './uuid'
+
+// 客户阶段选项
+export const CUSTOMER_STAGES = [
+  '线索跟踪',
+  '送样完成',
+  '内部准备',
+  '客户评估',
+  '投标竞争',
+  '客户下单'
+] as const
+
+export type CustomerStage = typeof CUSTOMER_STAGES[number]
 
 // 内置默认字段映射规则
 export const DEFAULT_MAPPING_RULES: Record<string, {
@@ -16,11 +29,6 @@ export const DEFAULT_MAPPING_RULES: Record<string, {
       '公司名称', '客户名称', '公司', '客户', '单位名称',
       '企业名称', '单位', '企业', '名', '公司全称', '客户公司'
     ]
-  },
-  shortName: {
-    label: '公司简称',
-    required: false,
-    aliases: ['简称', '公司简称', '客户简称', '缩写', '企业简称']
   },
   city: {
     label: '城市',
@@ -54,6 +62,13 @@ export const DEFAULT_MAPPING_RULES: Record<string, {
       '手机号', '座机', 'TEL', 'Tel', '电话/手机', '联系方式'
     ]
   },
+  stage: {
+    label: '客户阶段',
+    required: true,
+    aliases: [
+      '客户阶段', '阶段', '跟进阶段', '业务阶段', '状态', '客户状态'
+    ]
+  },
   email: {
     label: '邮箱',
     required: false,
@@ -67,7 +82,7 @@ export const DEFAULT_MAPPING_RULES: Record<string, {
     required: false,
     aliases: [
       '备注', '说明', '产品需求', '备注信息', '其他',
-      '补充说明', '需求', '描述', '主要产品', '客户阶段'
+      '补充说明', '需求', '描述', '主要产品'
     ]
   }
 }
@@ -82,13 +97,15 @@ export interface MappingTemplate {
 export interface CustomerData {
   id: string
   companyName: string
-  shortName: string
   city: string
   address: string
   contactPerson: string
   phone: string
   email: string
+  stage: CustomerStage
   notes: string
+  longitude?: number
+  latitude?: number
   updateTime: string
 }
 
@@ -148,12 +165,13 @@ export function cleanCustomerData(
     // 跳过空行或没有公司名称的行
     if (!companyName) return
 
+    // 解析客户阶段
+    const stageValue = mapping.stage ? row[mapping.stage]?.trim() : ''
+    const stage = parseCustomerStage(stageValue)
+
     const customer: CustomerData = {
-      id: crypto.randomUUID(),
+      id: randomUUID(),
       companyName: companyName,
-      shortName: mapping.shortName && row[mapping.shortName]?.trim()
-        ? row[mapping.shortName].trim()
-        : generateShortName(companyName),
       city: mapping.city && row[mapping.city]?.trim()
         ? row[mapping.city].trim()
         : extractCityFromAddress(mapping.address ? row[mapping.address] : ''),
@@ -161,6 +179,7 @@ export function cleanCustomerData(
       contactPerson: mapping.contactPerson ? row[mapping.contactPerson]?.trim() || '' : '',
       phone: mapping.phone ? formatPhoneNumber(row[mapping.phone]?.trim() || '') : '',
       email: mapping.email ? row[mapping.email]?.trim() || '' : '',
+      stage: stage,
       notes: mapping.notes ? row[mapping.notes]?.trim() || '' : '',
       updateTime: new Date().toISOString()
     }
@@ -169,30 +188,6 @@ export function cleanCustomerData(
   })
 
   return customers
-}
-
-/**
- * 生成公司简称
- */
-function generateShortName(fullName: string): string {
-  if (!fullName) return ''
-
-  // 移除常见后缀
-  const suffixes = ['有限公司', '有限责任公司', '股份有限公司', '集团', '公司', '企业', 'Co., Ltd.', 'Ltd.']
-  let shortName = fullName
-
-  suffixes.forEach(suffix => {
-    shortName = shortName.replace(new RegExp(suffix, 'g'), '')
-  })
-
-  // 移除括号内容
-  shortName = shortName.replace(/\([^)]*\)/g, '').replace(/（[^）]*）/g, '')
-
-  // 移除多余空格
-  shortName = shortName.replace(/\s+/g, '').trim()
-
-  // 保留前6个字符
-  return shortName.substring(0, 6)
 }
 
 /**
@@ -225,6 +220,42 @@ function extractCityFromAddress(address: string): string {
   }
 
   return ''
+}
+
+/**
+ * 解析客户阶段
+ */
+function parseCustomerStage(value: string | undefined): CustomerStage {
+  if (!value) return CUSTOMER_STAGES[0]
+  const normalized = value.trim()
+
+  // 支持多种格式：数字+文字、纯文字
+  // 优先匹配带数字前缀的完整阶段名
+  for (let i = 0; i < CUSTOMER_STAGES.length; i++) {
+    const stage = CUSTOMER_STAGES[i]
+    const prefix = String(i + 1)
+    // 匹配 "1线索跟踪" 或 "线索跟踪"
+    if (normalized === `${prefix}${stage}` || normalized.startsWith(`${prefix}${stage}`)) {
+      return stage
+    }
+    if (normalized === stage || normalized.startsWith(stage)) {
+      return stage
+    }
+  }
+
+  // 尝试从包含多个阶段值的字符串中提取（如 "2内部准备\n4客户评估"）
+  // 取第一个匹配的阶段
+  for (let i = 0; i < CUSTOMER_STAGES.length; i++) {
+    const stage = CUSTOMER_STAGES[i]
+    if (normalized.includes(stage)) {
+      return stage
+    }
+    if (normalized.includes(`${i + 1}${stage}`)) {
+      return stage
+    }
+  }
+
+  return CUSTOMER_STAGES[0]
 }
 
 /**
